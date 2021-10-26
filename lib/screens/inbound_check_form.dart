@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:wms_mobile/models/good_receive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InboundCheckForm extends StatefulWidget {
   final String _id;
@@ -22,11 +23,22 @@ class _State extends State<InboundCheckForm> {
   String _productCode = '';
   String _baseQuantity = '';
 
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    return (prefs.getString('token') ?? '');
+  }
+
   Future<GoodReceive> _getData([data = null]) async {
     final response;
 
     if (data == null) {
-      response = await http.get(Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/data'));
+      response = await http.get(
+        Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/data'),
+        headers: {
+          'Authorization': 'Bearer ' + await _getToken()
+        }
+      );
     } else {
       response = data;
     }
@@ -66,7 +78,8 @@ class _State extends State<InboundCheckForm> {
     final response = await http.post(
       Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/check'),
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + await _getToken()
       },
       body: {
         'product_code': _productCode,

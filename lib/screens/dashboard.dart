@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Dashboard extends StatefulWidget {
   @override
@@ -42,8 +43,19 @@ class DashboardData {
 class _State extends State<Dashboard> {
   late Future<DashboardData> _data;
 
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    return (prefs.getString('token') ?? '');
+  }
+
   Future<DashboardData> _getData() async {
-    final response = await http.get(Uri.parse(dotenv.env['API_URL'].toString() + '/dashboard'));
+    final response = await http.get(
+      Uri.parse(dotenv.env['API_URL'].toString() + '/dashboard'),
+      headers: {
+        'Authorization': 'Bearer ' + await _getToken()
+      }
+    );
 
     return DashboardData.fromJson(jsonDecode(response.body));
   }

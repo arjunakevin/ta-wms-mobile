@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:wms_mobile/models/good_receive.dart';
 import 'package:wms_mobile/models/movement_order.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PutawayForm extends StatefulWidget {
   final String _id;
@@ -24,11 +25,22 @@ class _State extends State<PutawayForm> {
   String _baseQuantity = '';
   String _locationCode = '';
 
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    return (prefs.getString('token') ?? '');
+  }
+
   Future<GoodReceive> _getData([data = null]) async {
     final response;
 
     if (data == null) {
-      response = await http.get(Uri.parse(dotenv.env['API_URL'].toString() + '/putaway/' + _id + '/data'));
+      response = await http.get(
+        Uri.parse(dotenv.env['API_URL'].toString() + '/putaway/' + _id + '/data'),
+        headers: {
+          'Authorization': 'Bearer ' + await _getToken()
+        }
+      );
     } else {
       response = data;
     }
@@ -70,7 +82,8 @@ class _State extends State<PutawayForm> {
     final movementResponse = await http.post(
       Uri.parse(dotenv.env['API_URL'].toString() + '/putaway/' + _id + '/init'),
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + await _getToken()
       }
     );
 
@@ -79,7 +92,8 @@ class _State extends State<PutawayForm> {
     final response = await http.post(
       Uri.parse(dotenv.env['API_URL'].toString() + '/putaway/' + movement.id.toString() + '/submit'),
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + await _getToken()
       },
       body: {
         'product_code': _productCode,

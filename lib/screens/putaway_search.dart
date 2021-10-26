@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:wms_mobile/screens/putaway_form.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PutawaySearch extends StatefulWidget {
   @override
@@ -14,6 +15,12 @@ class _State extends State<PutawaySearch> {
   String _id = '';
   bool _loading = true;
 
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    return (prefs.getString('token') ?? '');
+  }
+
   void _submit() async {
     setState(() {
       _loading = true;
@@ -23,7 +30,8 @@ class _State extends State<PutawaySearch> {
       Uri.parse(dotenv.env['API_URL'].toString() + '/putaway/' + _id + '/status'),
       headers: {
         'Accept' : 'application/json',
-        'Content-Type' : 'application/json'
+        'Content-Type' : 'application/json',
+        'Authorization': 'Bearer ' + await _getToken()
       }
     );
 

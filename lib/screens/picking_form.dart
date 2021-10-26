@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:wms_mobile/models/picklist.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PickingForm extends StatefulWidget {
   final String _id;
@@ -23,11 +24,22 @@ class _State extends State<PickingForm> {
   String _baseQuantity = '';
   String _locationCode = '';
 
+  Future<String> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    return (prefs.getString('token') ?? '');
+  }
+
   Future<Picklist> _getData([data = null]) async {
     final response;
 
     if (data == null) {
-      response = await http.get(Uri.parse(dotenv.env['API_URL'].toString() + '/picking/' + _id + '/data'));
+      response = await http.get(
+        Uri.parse(dotenv.env['API_URL'].toString() + '/picking/' + _id + '/data'),
+        headers: {
+          'Authorization': 'Bearer ' + await _getToken()
+        }
+      );
     } else {
       response = data;
     }
@@ -67,7 +79,8 @@ class _State extends State<PickingForm> {
     final response = await http.post(
       Uri.parse(dotenv.env['API_URL'].toString() + '/picking/' + _id + '/submit'),
       headers: {
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + await _getToken()
       },
       body: {
         'product_code': _productCode,
