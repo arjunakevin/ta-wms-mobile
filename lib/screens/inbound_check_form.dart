@@ -101,7 +101,7 @@ class _State extends State<InboundCheckForm> {
   Widget _getOutstandingWidget(snapshot) {
     if (snapshot.data!.outstanding.isEmpty) {
       return Center(
-        child: Text('No outstanding product.')
+        child: Text('No outstanding item.')
       );
     }
 
@@ -109,10 +109,6 @@ class _State extends State<InboundCheckForm> {
       shrinkWrap: true,
       itemCount: snapshot.data!.outstanding.length,
       itemBuilder: (BuildContext context, int index) {
-        if (snapshot.data!.outstanding.isEmpty) {
-          return Text('No outstanding item');
-        }
-
         return Card(
           elevation: 2,
           child: Padding(
