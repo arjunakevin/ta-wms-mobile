@@ -132,7 +132,7 @@ class _State extends State<OutboundCheckSearch> {
   void initState() {
     super.initState();
     WidgetsBinding.instance!.addPostFrameCallback((_) async {
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(Duration(milliseconds: 100));
 
       setState(() {
         _loading = false;

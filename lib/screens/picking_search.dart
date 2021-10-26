@@ -12,7 +12,7 @@ class PickingSearch extends StatefulWidget {
 
 class _State extends State<PickingSearch> {
   String _id = '';
-  bool _loading = false;
+  bool _loading = true;
 
   void _submit() async {
     setState(() {
@@ -127,6 +127,17 @@ class _State extends State<PickingSearch> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance!.addPostFrameCallback((_) async {
+      await Future.delayed(Duration(milliseconds: 100));
+
+      setState(() {
+        _loading = false;
+      });
+    });
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
