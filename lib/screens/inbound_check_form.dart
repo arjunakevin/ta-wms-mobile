@@ -1,324 +1,394 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:wms_mobile/models/good_receive.dart';
 
 class InboundCheckForm extends StatefulWidget {
+  final String _id;
+
+  InboundCheckForm(this._id);
+  
   @override
   _State createState() => _State();
 }
 
 class _State extends State<InboundCheckForm> {
-  final _outstanding = [
-    {'product_code': 'PRD-ZXBRSU-333694', 'open_check_quantity': '100 PCS', 'description': 'Exercitationem distinctio sunt voluptatum delectus non velit. Sit dolore voluptas occaecati velit. Unde fugit aut quas ut esse error qui aut.'},
-    {'product_code': 'PRD-FZERFU-240681', 'open_check_quantity': '200 PCS', 'description': 'Repudiandae adipisci ut praesentium pariatur nesciunt corrupti. Dolorem libero minus tempora et qui quia. Asperiores id recusandae rem beatae. Omnis illo magnam fuga.'},
-  ];
+  late Future<GoodReceive> _data;
+  late String _id;
+  bool _loading = false;
+
+  String _productCode = '';
+  String _baseQuantity = '';
+
+  Future<GoodReceive> _getData([data = null]) async {
+    final response;
+
+    if (data == null) {
+      response = await http.get(Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/data'));
+    } else {
+      response = data;
+    }
+    
+    return GoodReceive.fromJson(jsonDecode(response.body));
+  }
+
+  void _showAlertDialog(String message) {
+    Widget okButton = TextButton(
+      child: Text("Close"),
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+    );
+
+    AlertDialog alert = AlertDialog(
+      title: Text("Message"),
+      content: Text(message.replaceAll('\\n', '\n')),
+      actions: [
+        okButton
+      ],
+    );
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
+  void _submitData(context) async {
+    setState(() {
+      _loading = true;
+    });
+
+    final response = await http.post(
+      Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/check'),
+      headers: {
+        'Accept': 'application/json'
+      },
+      body: {
+        'product_code': _productCode,
+        'base_quantity': _baseQuantity
+      }
+    );
+
+    setState(() {
+      _loading = false;
+    });
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _data = _getData(response);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Item check success.'),
+        duration: Duration(
+          seconds: 1
+        ),
+      ));
+    } else {
+      var jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+
+      String message = jsonResponse['message'];
+
+      _showAlertDialog(message);
+    }
+  }
+
+  Widget _getOutstandingWidget(snapshot) {
+    if (snapshot.data!.outstanding.isEmpty) {
+      return Center(
+        child: Text('No outstanding product.')
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: snapshot.data!.outstanding.length,
+      itemBuilder: (BuildContext context, int index) {
+        if (snapshot.data!.outstanding.isEmpty) {
+          return Text('No outstanding item');
+        }
+
+        return Card(
+          elevation: 2,
+          child: Padding(
+            padding: EdgeInsets.all(10),
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.zero,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      snapshot.data!.outstanding[index].productCode,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold
+                      )
+                    )
+                  )
+                ),
+                Divider(
+                  thickness: 1,
+                  color: Colors.black,
+                ),
+                Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Description :',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600
+                        )
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(snapshot.data!.outstanding[index].description),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: 10
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Outstanding Check Quantity :',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600
+                          )
+                        )
+                      )
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(snapshot.data!.outstanding[index].baseQuantity)
+                    )
+                  ]
+                )
+              ],
+            )
+          )
+        );
+      },
+    );
+  }
+
+  void initState() {
+    super.initState();
+    _id = widget._id;
+    _data = _getData();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Inbound Item Check'),
-          bottom: TabBar(
-            tabs: const [
-              Tab(
-                child: Text('Info')
+    return FutureBuilder<GoodReceive>(
+      future: _data,
+      builder: (context, snapshot) {
+        if (snapshot.hasData && !_loading) {
+          return DefaultTabController(
+            length: 3,
+            initialIndex: 1,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Text('Inbound Item Check'),
+                bottom: TabBar(
+                  tabs: const [
+                    Tab(
+                      child: Text('Info')
+                    ),
+                    Tab(
+                      child: Text('Item Check')
+                    ),
+                    Tab(
+                      child: Text('Outstanding')
+                    )
+                  ]
+                )
               ),
-              Tab(
-                child: Text('Item Check')
-              ),
-              Tab(
-                child: Text('Outstanding')
-              )
-            ]
-          )
-        ),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: 5,
-            horizontal: 5
-          ),
-          child: Column(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 200.0,
-                  child: TabBarView(
-                    children: [
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
+              body: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 5,
+                  horizontal: 5
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 200.0,
+                        child: TabBarView(
+                          children: [
+                            Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: EdgeInsets.all(10.0),
                                 child: Column(
                                   children: [
                                     Align(
                                       alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Good Receive ID',
-                                              style: TextStyle(fontWeight: FontWeight.bold)
-                                            )
-                                          ],
-                                        ),
-                                      ),
+                                      child: Text(
+                                        'Good Receive ID',
+                                        style: TextStyle(fontWeight: FontWeight.bold)
+                                      )
                                     ),
                                     Align(
                                       alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: '1067',
-                                            )
-                                          ],
-                                        ),
-                                      ),
+                                      child: Text(
+                                        snapshot.data!.id.toString()
+                                      )
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 10
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Reference',
+                                        style: TextStyle(fontWeight: FontWeight.bold)
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        snapshot.data!.reference
+                                      )
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 10
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Client Code',
+                                        style: TextStyle(fontWeight: FontWeight.bold)
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        snapshot.data!.clientCode
+                                      )
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 10
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Status',
+                                        style: TextStyle(fontWeight: FontWeight.bold)
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        snapshot.data!.status
+                                      )
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 10
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'Notes',
+                                        style: TextStyle(fontWeight: FontWeight.bold)
+                                      )
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        snapshot.data!.notes
+                                      )
                                     ),
                                   ],
                                 )
-                              ),
-                              Container(
-                                padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Reference',
-                                              style: TextStyle(fontWeight: FontWeight.bold)
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'RCV-LOYRDW-565690',
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ),
-                              Container(
-                                padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Client Code',
-                                              style: TextStyle(fontWeight: FontWeight.bold)
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'CLT-MMVITE-589450',
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ),
-                              Container(
-                                padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Status',
-                                              style: TextStyle(fontWeight: FontWeight.bold)
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Draft',
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ),
-                              Container(
-                                padding: EdgeInsets.fromLTRB(0, 0, 0, 10),
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Notes',
-                                              style: TextStyle(fontWeight: FontWeight.bold)
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.black,
-                                          ),
-                                          children: const [
-                                            TextSpan(
-                                              text: 'Est assumenda dignissimos vitae temporibus ut. Aspernatur consequatur possimus ad autem velit praesentium id. Recusandae quasi et reprehenderit consequatur totam qui. Ullam iure iusto sit illum.',
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              ),
-                            ],
-                          )
-                        ),
-                      ),
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: EdgeInsets.all(10.0),
-                          child: Column(
-                            children: [
-                              Center(
-                                child: TextField(
-                                  decoration: InputDecoration(
-                                    hintText: 'Product Code'
-                                  ),
-                                )
-                              ),
-                              Center(
-                                child: TextField(
-                                  decoration: InputDecoration(
-                                    hintText: 'Base Quantity'
-                                  ),
-                                )
-                              ),
-                              Container(
-                                constraints: BoxConstraints.expand(width: double.infinity, height: 60.0),
-                                padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-                                child: TextButton(
-                                  child: Text(
-                                    'Submit',
-                                    style: TextStyle(
-                                      color: Colors.white
-                                    )
-                                  ),
-                                  style: ButtonStyle(
-                                    backgroundColor: MaterialStateProperty.all<Color>(Colors.blue),
-                                  ),
-                                  onPressed: () => {}
-                                ),
-                              )
-                            ],
-                          )
-                        ),
-                      ),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: 1,
-                        itemBuilder: (BuildContext context, int index) {
-                          return Card(
-                            child: Container(
-                              padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-                              child: ListTile(
-                                isThreeLine: true,
-                                title: Text('PRD-FZERFU-240681'),
-                                subtitle: Text("Repudiandae adipisci ut praesentium pariatur nesciunt corrupti. Dolorem libero minus tempora et qui quia. Asperiores id recusandae rem beatae. Omnis illo magnam fuga. \n\n100 PCS"),
                               ),
                             ),
-                            elevation: 2
-                          );
-                        },
+                            Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: EdgeInsets.all(10.0),
+                                child: Column(
+                                  children: [
+                                    Center(
+                                      child: TextField(
+                                        decoration: InputDecoration(
+                                          hintText: 'Product Code'
+                                        ),
+                                        onChanged: (value) => {
+                                          setState(() {
+                                            _productCode = value;
+                                          })
+                                        },
+                                      ),
+                                    ),
+                                    Center(
+                                      child: TextField(
+                                        decoration: InputDecoration(
+                                          hintText: 'Base Quantity'
+                                        ),
+                                        onChanged: (value) => {
+                                          setState(() {
+                                            _baseQuantity = value;
+                                          })
+                                        },
+                                      )
+                                    ),
+                                    Container(
+                                      constraints: BoxConstraints.expand(width: double.infinity, height: 60.0),
+                                      padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
+                                      child: ElevatedButton(
+                                        child: Text(
+                                          'Submit',
+                                          style: TextStyle(
+                                            color: Colors.white
+                                          )
+                                        ),
+                                        style: ButtonStyle(
+                                          backgroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+                                        ),
+                                        onPressed: () => _submitData(context)
+                                      ),
+                                    )
+                                  ],
+                                )
+                              ),
+                            ),
+                            _getOutstandingWidget(snapshot)
+                          ],
+                        )
                       )
-                    ],
-                  )
-                )
+                    )
+                  ],
+                ),
               )
-            ],
-          ),
-        )
-      )
+            )
+          );
+        }
+
+        // By default, show a loading spinner.
+        return Scaffold(
+          body: Center(
+            child: SpinKitThreeBounce(
+              color: Theme.of(context).primaryColor,
+              size: 20
+            )
+          )
+        );
+      }
     );
   }
 }

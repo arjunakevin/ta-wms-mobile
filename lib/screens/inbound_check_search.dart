@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:wms_mobile/screens/inbound_check_form.dart';
 
@@ -16,21 +19,34 @@ class _State extends State<InboundCheckSearch> {
       _loading = true;
     });
 
-    await Future.delayed(Duration(seconds: 1));
+    final response = await http.get(
+      Uri.parse(dotenv.env['API_URL'].toString() + '/gr_check/' + _id + '/status'),
+      headers: {
+        'Accept' : 'application/json',
+        'Content-Type' : 'application/json'
+      }
+    );
 
     setState(() {
       _loading = false;
     });
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => InboundCheckForm())
-    );
+    if (response.statusCode == 200) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => InboundCheckForm(_id))
+      );
+    } else {
+      var jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      String message = response.statusCode == 404
+        ? "Good receive data not found."
+        :  jsonResponse['message'];
 
-    // _showAlertDialog(context);
+      _showAlertDialog(message);
+    }
   }
 
-  void _showAlertDialog(BuildContext context) {
+  void _showAlertDialog(String message) {
     Widget okButton = TextButton(
       child: Text("Close"),
       onPressed: () {
@@ -40,7 +56,7 @@ class _State extends State<InboundCheckSearch> {
 
     AlertDialog alert = AlertDialog(
       title: Text("Message"),
-      content: Text("This is my message."),
+      content: Text(message.replaceAll('\\n', '\n')),
       actions: [
         okButton
       ],
@@ -76,7 +92,7 @@ class _State extends State<InboundCheckSearch> {
             Container(
               constraints: BoxConstraints.expand(width: double.infinity, height: 60.0),
               padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-              child: TextButton(
+              child: ElevatedButton(
                 child: Text(
                   'Submit',
                   style: TextStyle(
