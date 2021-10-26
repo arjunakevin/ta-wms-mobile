@@ -130,7 +130,7 @@ class _State extends State<InboundCheckSearch> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Search Good Receive'),
+        title: Text('Inbound Check - Search Good Receive'),
       ),
       body: _getWidget(context)
     );
