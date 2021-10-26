@@ -205,7 +205,7 @@ class _State extends State<PutawayForm> {
             initialIndex: 1,
             child: Scaffold(
               appBar: AppBar(
-                title: Text('Inbound Item Check'),
+                title: Text('Putaway'),
                 bottom: TabBar(
                   tabs: const [
                     Tab(

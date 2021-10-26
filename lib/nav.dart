@@ -16,8 +16,8 @@ class _State extends State<Nav> {
     InboundCheckSearch(),
     PutawaySearch(),
     Dashboard(),
-    OutboundCheckSearch(),
-    PickingSearch()
+    PickingSearch(),
+    OutboundCheckSearch()
   ];
 
   void _onItemTap(int index) {
